@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e1e24" />
+    <title>ProTask</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section id="authView" class="auth-view">
+      <form id="authForm" class="auth-form">
+        <div class="brand auth-brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <strong>ProTask</strong>
+            <span>Защищенный workspace с облачной синхронизацией</span>
+          </div>
+        </div>
+
+        <div>
+          <p class="eyebrow">Вход</p>
+          <h1>Ваши заметки, планы и списки в одном пространстве</h1>
+          <p class="muted">
+            Вход работает через Supabase Auth, а заметки синхронизируются между устройствами через защищенную базу.
+          </p>
+        </div>
+
+        <label>
+          Логин
+          <input id="loginInput" type="text" autocomplete="username" placeholder="например: alex" required />
+        </label>
+        <label>
+          Пароль
+          <input id="passwordInput" type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов" required />
+        </label>
+
+        <button class="primary-button" type="submit">Войти или создать профиль</button>
+      </form>
+    </section>
+
+    <div id="appShell" class="app-shell" hidden>
+      <aside class="sidebar" aria-label="Заметки">
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <strong>ProTask</strong>
+            <span id="syncStatus">Локальный режим</span>
+          </div>
+        </div>
+
+        <div class="sidebar-actions">
+          <button id="newNoteButton" class="primary-button" type="button">Новая заметка</button>
+        </div>
+
+        <nav id="noteList" class="note-list" aria-label="Список заметок"></nav>
+
+        <section class="account-panel">
+          <p>Профиль</p>
+          <strong id="currentUserLabel">Гость</strong>
+          <button id="syncNowButton" class="ghost-button" type="button">Синхронизировать</button>
+          <button id="installButton" class="ghost-button" type="button" hidden>Установить приложение</button>
+          <button id="logoutButton" class="ghost-button" type="button">Выйти</button>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="title-group">
+            <input id="noteTitleInput" class="note-title-input" type="text" aria-label="Название заметки" />
+            <div class="note-meta">
+              <strong id="noteTypeLabel">Заметка</strong>
+              <span id="savedStatus">Сохранено локально</span>
+              <span id="updatedAtLabel"></span>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button id="deleteNoteButton" class="danger-button" type="button">Удалить</button>
+          </div>
+        </header>
+
+        <section id="editorEmptyState" class="empty-state">
+          <h2>Выберите или создайте заметку</h2>
+          <p>При создании можно выбрать обычную заметку, интерактивный список или GTD-планировщик.</p>
+        </section>
+
+        <section id="editorPanel" class="editor-panel" hidden>
+          <textarea id="textEditor" class="text-editor" aria-label="Текст заметки" spellcheck="true"></textarea>
+          <div id="listEditor" class="list-editor" aria-label="Список задач" hidden></div>
+          <div id="plannerEditor" class="planner-editor" aria-label="Планировщик GTD" hidden></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="noteTypeDialog" class="dialog-backdrop" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Новая заметка</p>
+            <h2 id="dialogTitle">Что создаем?</h2>
+          </div>
+          <button id="closeDialogButton" class="icon-button" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <div class="type-grid">
+          <button class="type-card" data-create-type="note" type="button">
+            <strong>Заметка</strong>
+            <span>Чистое поле для текста, идей и набросков.</span>
+          </button>
+          <button class="type-card" data-create-type="list" type="button">
+            <strong>Список</strong>
+            <span>Строки с галочками: Enter сразу добавляет новый пункт.</span>
+          </button>
+          <button class="type-card" data-create-type="planner" type="button">
+            <strong>Планировщик</strong>
+            <span>GTD-доска с колонками и цветной важностью задач.</span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
