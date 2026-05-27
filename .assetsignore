@@ -1,0 +1,10 @@
+.git
+.gitignore
+.assetsignore
+.wrangler
+node_modules
+README.md
+DEPLOYMENT.md
+PRODUCTION_CHECKLIST.md
+SECURITY.md
+supabase-schema.sql

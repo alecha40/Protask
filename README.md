@@ -63,7 +63,6 @@ See `DEPLOYMENT.md` for step-by-step Cloudflare Pages and Netlify instructions.
 - `manifest.webmanifest` - PWA manifest
 - `supabase-schema.sql` - database schema and RLS policies
 - `_headers` - production security/cache headers
-- `_redirects` - static hosting fallback
 - `DEPLOYMENT.md` - deploy instructions
 - `PRODUCTION_CHECKLIST.md` - release checklist
 - `SECURITY.md` - security notes and limits

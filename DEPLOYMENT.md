@@ -9,7 +9,7 @@
 
 ```text
 Framework preset: None
-Build command: empty
+Build command: empty, or Cloudflare default static deploy
 Build output directory: /
 Root directory: /
 ```
@@ -34,6 +34,8 @@ Redirect URLs = https://your-project.pages.dev/**
 Build command: empty
 Publish directory: /
 ```
+
+Netlify can use `_redirects`, but this project intentionally does not include it because Cloudflare Workers static deploy rejects the generic SPA fallback as an infinite redirect. The app currently does not need client-side routes.
 
 4. Deploy.
 5. In Supabase, set:
@@ -63,4 +65,3 @@ Use two separate browsers or devices:
 4. Refresh device B.
 5. Repeat for checklist and planner.
 6. Test offline edit by disconnecting the internet, editing, reconnecting, and syncing.
-
