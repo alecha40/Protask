@@ -1,4 +1,4 @@
-const CACHE_NAME = "protask-v11";
+const CACHE_NAME = "mindplan-v12";
 const ASSETS = [
   ".",
   "index.html",

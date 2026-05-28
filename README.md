@@ -1,6 +1,6 @@
-# ProTask
+# MindPlan.fun
 
-ProTask is a static PWA for notes, checklists, and GTD-style planning with Supabase Auth, Row Level Security, local IndexedDB storage, and cloud sync.
+MindPlan.fun is a static PWA for notes, checklists, and GTD-style planning with Supabase Auth, Row Level Security, local IndexedDB storage, and cloud sync.
 
 ## Current Stack
 

@@ -112,9 +112,31 @@ button {
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: var(--brand);
-  color: #fff;
-  font-weight: 900;
+  background: linear-gradient(135deg, rgba(139, 124, 246, 0.34), rgba(208, 168, 92, 0.18));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.brand-mark svg {
+  width: 30px;
+  height: 30px;
+}
+
+.logo-brain {
+  fill: rgba(139, 124, 246, 0.95);
+}
+
+.logo-brain-line,
+.logo-base,
+.logo-rays {
+  fill: none;
+  stroke: #ececf1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.logo-bulb {
+  fill: rgba(208, 168, 92, 0.95);
 }
 
 .brand strong,

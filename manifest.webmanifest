@@ -1,7 +1,7 @@
 {
-  "name": "ProTask",
-  "short_name": "ProTask",
-  "description": "Гибкий задачник с offline-first синхронизацией.",
+  "name": "MindPlan.fun",
+  "short_name": "MindPlan",
+  "description": "Заметки, списки и планирование с защищенной синхронизацией.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#1e1e24",
