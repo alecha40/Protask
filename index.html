@@ -41,6 +41,7 @@
     </section>
 
     <div id="appShell" class="app-shell" hidden>
+      <button id="menuButton" class="mobile-menu-button" type="button" aria-label="Открыть меню">☰</button>
       <aside class="sidebar" aria-label="Заметки">
         <div class="brand">
           <div class="brand-mark">P</div>
@@ -52,6 +53,7 @@
 
         <div class="sidebar-actions">
           <button id="newNoteButton" class="primary-button" type="button">Новая заметка</button>
+          <button id="newFolderButton" class="ghost-button" type="button">Новая папка</button>
         </div>
 
         <nav id="noteList" class="note-list" aria-label="Список заметок"></nav>
@@ -71,12 +73,17 @@
             <input id="noteTitleInput" class="note-title-input" type="text" aria-label="Название заметки" />
             <div class="note-meta">
               <strong id="noteTypeLabel">Заметка</strong>
+              <label class="folder-select-label">
+                Папка
+                <select id="folderSelect" aria-label="Папка заметки"></select>
+              </label>
               <span id="savedStatus">Сохранено локально</span>
               <span id="updatedAtLabel"></span>
             </div>
           </div>
 
           <div class="toolbar">
+            <button id="insertFoldButton" class="ghost-button" type="button">Свертка</button>
             <button id="deleteNoteButton" class="danger-button" type="button">Удалить</button>
           </div>
         </header>
@@ -88,6 +95,7 @@
 
         <section id="editorPanel" class="editor-panel" hidden>
           <textarea id="textEditor" class="text-editor" aria-label="Текст заметки" spellcheck="true"></textarea>
+          <div id="foldPreview" class="fold-preview" hidden></div>
           <div id="listEditor" class="list-editor" aria-label="Список задач" hidden></div>
           <div id="plannerEditor" class="planner-editor" aria-label="Планировщик GTD" hidden></div>
         </section>

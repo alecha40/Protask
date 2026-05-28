@@ -4,6 +4,7 @@ const STORE_PROFILES = "profiles";
 const STORE_NOTES = "notes";
 const STORE_OUTBOX = "outbox";
 const SESSION_KEY = "protask-session";
+const FOLDERS_KEY = "protask-folders";
 const SUPABASE_URL = "https://xbvxlknwlqrtiuafkwzk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_WRlnbtQ5ieh02JxHxkgLDw_mFHEhlvu";
 
@@ -35,12 +36,15 @@ const state = {
   saveTimer: null,
   draggedTask: null,
   syncTimer: null,
+  folders: [],
+  draggedNoteId: null,
 };
 
 const elements = {
   authView: document.querySelector("#authView"),
   appShell: document.querySelector("#appShell"),
   authForm: document.querySelector("#authForm"),
+  menuButton: document.querySelector("#menuButton"),
   loginInput: document.querySelector("#loginInput"),
   passwordInput: document.querySelector("#passwordInput"),
   currentUserLabel: document.querySelector("#currentUserLabel"),
@@ -49,7 +53,9 @@ const elements = {
   syncStatus: document.querySelector("#syncStatus"),
   installButton: document.querySelector("#installButton"),
   newNoteButton: document.querySelector("#newNoteButton"),
+  newFolderButton: document.querySelector("#newFolderButton"),
   noteList: document.querySelector("#noteList"),
+  folderSelect: document.querySelector("#folderSelect"),
   noteTitleInput: document.querySelector("#noteTitleInput"),
   noteTypeLabel: document.querySelector("#noteTypeLabel"),
   updatedAtLabel: document.querySelector("#updatedAtLabel"),
@@ -57,9 +63,11 @@ const elements = {
   editorEmptyState: document.querySelector("#editorEmptyState"),
   editorPanel: document.querySelector("#editorPanel"),
   textEditor: document.querySelector("#textEditor"),
+  foldPreview: document.querySelector("#foldPreview"),
   listEditor: document.querySelector("#listEditor"),
   plannerEditor: document.querySelector("#plannerEditor"),
   deleteNoteButton: document.querySelector("#deleteNoteButton"),
+  insertFoldButton: document.querySelector("#insertFoldButton"),
   noteTypeDialog: document.querySelector("#noteTypeDialog"),
   closeDialogButton: document.querySelector("#closeDialogButton"),
   typeCards: document.querySelectorAll("[data-create-type]"),
@@ -117,6 +125,20 @@ function storeGetAll(storeName) {
 
 function normalizeLogin(login) {
   return login.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function getFolderStorageKey() {
+  return `${FOLDERS_KEY}:${state.user?.id ?? "guest"}`;
+}
+
+function loadFolders() {
+  const saved = JSON.parse(localStorage.getItem(getFolderStorageKey()) || "[]");
+  const fromNotes = state.notes.map((note) => note.folderName).filter(Boolean);
+  state.folders = [...new Set(["Без папки", ...saved, ...fromNotes])];
+}
+
+function saveFolders() {
+  localStorage.setItem(getFolderStorageKey(), JSON.stringify(state.folders.filter((folder) => folder !== "Без папки")));
 }
 
 function loginToEmail(login) {
@@ -243,7 +265,11 @@ async function loadNotes() {
 
   const index = tx(STORE_NOTES).index("userId");
   const notes = await requestToPromise(index.getAll(state.user.id));
-  state.notes = notes.filter((note) => !note.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  state.notes = notes
+    .filter((note) => !note.deletedAt)
+    .map((note) => ({ ...note, folderName: note.folderName || "Без папки", sortOrder: note.sortOrder ?? 0 }))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || b.updatedAt.localeCompare(a.updatedAt));
+  loadFolders();
 
   if (!state.notes.some((note) => note.id === state.activeNoteId)) {
     state.activeNoteId = state.notes[0]?.id ?? null;
@@ -257,6 +283,8 @@ function toRemoteNote(note) {
     title: note.title,
     type: note.type,
     body: note.body,
+    folder_name: note.folderName || "Без папки",
+    sort_order: note.sortOrder ?? 0,
     version: note.version,
     created_at: note.createdAt,
     updated_at: note.updatedAt,
@@ -271,6 +299,8 @@ function fromRemoteNote(note) {
     title: note.title,
     type: note.type,
     body: note.body ?? "",
+    folderName: note.folder_name || "Без папки",
+    sortOrder: note.sort_order ?? 0,
     version: note.version ?? 1,
     createdAt: note.created_at,
     updatedAt: note.updated_at,
@@ -313,7 +343,11 @@ async function syncOutbox() {
 
     await pullRemoteNotes();
     elements.syncStatus.textContent = outbox.length > 0 ? "Синхронизировано" : "Актуально";
-    render();
+    if (isEditorFocused()) {
+      renderNoteList();
+    } else {
+      render();
+    }
   } catch (error) {
     elements.syncStatus.textContent = "Ждет синхронизации";
     console.error(error);
@@ -322,7 +356,13 @@ async function syncOutbox() {
 
 function scheduleSync() {
   clearTimeout(state.syncTimer);
-  state.syncTimer = setTimeout(syncOutbox, 650);
+  state.syncTimer = setTimeout(syncOutbox, 8000);
+}
+
+function isEditorFocused() {
+  return [elements.noteTitleInput, elements.textEditor].includes(document.activeElement) ||
+    elements.listEditor.contains(document.activeElement) ||
+    elements.plannerEditor.contains(document.activeElement);
 }
 
 function getActiveNote() {
@@ -365,6 +405,8 @@ async function createNote(type = "note") {
     title: NOTE_TYPES[type],
     type,
     body: getDefaultBody(type),
+    folderName: state.folders[0] || "Без папки",
+    sortOrder: Date.now(),
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -438,6 +480,7 @@ async function saveActiveNoteFromEditor(getBody) {
     ...note,
     title: elements.noteTitleInput.value.trim() || NOTE_TYPES[note.type],
     body: typeof getBody === "function" ? getBody() : getBodyFromEditor(note),
+    folderName: elements.folderSelect.value || "Без папки",
     updatedAt: now,
     version: note.version + 1,
   };
@@ -489,37 +532,192 @@ function formatDateTime(value) {
 }
 
 function renderNoteList() {
-  const items = state.notes.map((note) => {
+  const folderNodes = state.folders.map((folderName) => {
+    const folder = document.createElement("section");
+    folder.className = "folder-group";
+    folder.dataset.folderName = folderName;
+    folder.innerHTML = `
+      <button class="folder-toggle" type="button">
+        <span></span>
+        <strong></strong>
+      </button>
+      <div class="folder-notes"></div>
+    `;
+
+    const notes = state.notes.filter((note) => (note.folderName || "Без папки") === folderName);
+    folder.querySelector("span").textContent = "▾";
+    folder.querySelector("strong").textContent = `${folderName} (${notes.length})`;
+    const list = folder.querySelector(".folder-notes");
+    list.replaceChildren(...notes.map(renderNoteItem));
+
+    folder.querySelector(".folder-toggle").addEventListener("click", () => {
+      folder.classList.toggle("collapsed");
+      folder.querySelector("span").textContent = folder.classList.contains("collapsed") ? "▸" : "▾";
+    });
+
+    list.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      folder.classList.add("drag-over");
+    });
+
+    list.addEventListener("dragleave", () => folder.classList.remove("drag-over"));
+    list.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      folder.classList.remove("drag-over");
+      await moveNoteToFolder(state.draggedNoteId, folderName);
+    });
+
+    return folder;
+  });
+
+  elements.noteList.replaceChildren(...folderNodes);
+  renderFolderSelect();
+}
+
+function renderNoteItem(note) {
     const button = document.createElement("button");
     button.className = `note-item ${note.id === state.activeNoteId ? "active" : ""}`;
     button.type = "button";
+    button.draggable = true;
+    button.dataset.noteId = note.id;
     button.innerHTML = `
       <strong></strong>
       <span>${NOTE_TYPES[note.type]} · ${formatDateTime(note.updatedAt)}</span>
     `;
     button.querySelector("strong").textContent = note.title;
+    button.addEventListener("dragstart", () => {
+      state.draggedNoteId = note.id;
+      button.classList.add("dragging");
+    });
+    button.addEventListener("dragend", () => {
+      state.draggedNoteId = null;
+      button.classList.remove("dragging");
+    });
+    button.addEventListener("dragover", (event) => event.preventDefault());
+    button.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      await reorderNote(state.draggedNoteId, note.id);
+    });
     button.addEventListener("click", () => {
       state.activeNoteId = note.id;
+      closeMobileMenu();
       render();
     });
     return button;
-  });
+}
 
-  elements.noteList.replaceChildren(...items);
+function renderFolderSelect() {
+  const activeNote = getActiveNote();
+  const options = state.folders.map((folder) => {
+    const option = document.createElement("option");
+    option.value = folder;
+    option.textContent = folder;
+    return option;
+  });
+  elements.folderSelect.replaceChildren(...options);
+  elements.folderSelect.value = activeNote?.folderName || "Без папки";
+}
+
+async function createFolder() {
+  const name = prompt("Название папки");
+  const folderName = name?.trim();
+  if (!folderName) return;
+  if (!state.folders.includes(folderName)) {
+    state.folders.push(folderName);
+    saveFolders();
+  }
+  renderNoteList();
+}
+
+async function moveNoteToFolder(noteId, folderName) {
+  const note = state.notes.find((item) => item.id === noteId);
+  if (!note) return;
+  const updatedNote = {
+    ...note,
+    folderName,
+    sortOrder: Date.now(),
+    updatedAt: new Date().toISOString(),
+    version: note.version + 1,
+  };
+  await saveNote(updatedNote);
+  await loadNotes();
+  render();
+}
+
+async function reorderNote(sourceId, targetId) {
+  if (!sourceId || sourceId === targetId) return;
+  const source = state.notes.find((note) => note.id === sourceId);
+  const target = state.notes.find((note) => note.id === targetId);
+  if (!source || !target) return;
+
+  const siblings = state.notes
+    .filter((note) => (note.folderName || "Без папки") === (target.folderName || "Без папки") && note.id !== sourceId)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const targetIndex = siblings.findIndex((note) => note.id === targetId);
+  siblings.splice(targetIndex, 0, source);
+
+  await Promise.all(
+    siblings.map((note, index) =>
+      saveNote({
+        ...note,
+        folderName: target.folderName || "Без папки",
+        sortOrder: index + 1,
+        updatedAt: new Date().toISOString(),
+        version: note.version + 1,
+      }),
+    ),
+  );
+  await loadNotes();
+  render();
 }
 
 function renderTextEditor(note) {
   elements.textEditor.hidden = false;
+  elements.foldPreview.hidden = false;
   elements.listEditor.hidden = true;
   elements.plannerEditor.hidden = true;
 
   if (document.activeElement !== elements.textEditor) {
     elements.textEditor.value = note.body;
   }
+  renderFoldPreview(note.body);
+}
+
+function renderFoldPreview(body) {
+  const blocks = [];
+  const lines = body.split("\n");
+  let current = null;
+
+  lines.forEach((line) => {
+    if (line.startsWith(":: ")) {
+      current = { title: line.slice(3).trim() || "Раздел", content: [] };
+      blocks.push(current);
+    } else if (line.trim() === "::") {
+      current = null;
+    } else if (current) {
+      current.content.push(line);
+    }
+  });
+
+  if (blocks.length === 0) {
+    elements.foldPreview.replaceChildren();
+    return;
+  }
+
+  const nodes = blocks.map((block) => {
+    const details = document.createElement("details");
+    details.className = "fold-block";
+    details.innerHTML = `<summary></summary><pre></pre>`;
+    details.querySelector("summary").textContent = block.title;
+    details.querySelector("pre").textContent = block.content.join("\n");
+    return details;
+  });
+  elements.foldPreview.replaceChildren(...nodes);
 }
 
 function renderListEditor(note) {
   elements.textEditor.hidden = true;
+  elements.foldPreview.hidden = true;
   elements.listEditor.hidden = false;
   elements.plannerEditor.hidden = true;
 
@@ -585,6 +783,7 @@ function saveListItems(items, focusIndex = null) {
 
 function renderPlannerEditor(note) {
   elements.textEditor.hidden = true;
+  elements.foldPreview.hidden = true;
   elements.listEditor.hidden = true;
   elements.plannerEditor.hidden = false;
 
@@ -796,7 +995,9 @@ function renderEditor() {
   elements.editorEmptyState.hidden = hasNote;
   elements.editorPanel.hidden = !hasNote;
   elements.noteTitleInput.disabled = !hasNote;
+  elements.folderSelect.disabled = !hasNote;
   elements.deleteNoteButton.disabled = !hasNote;
+  elements.insertFoldButton.disabled = !hasNote;
 
   if (!note) {
     elements.noteTitleInput.value = "";
@@ -810,6 +1011,7 @@ function renderEditor() {
   }
 
   elements.noteTypeLabel.textContent = NOTE_TYPES[note.type];
+  elements.folderSelect.value = note.folderName || "Без папки";
   elements.updatedAtLabel.textContent = `Обновлено ${formatDateTime(note.updatedAt)}`;
 
   if (note.type === "note") renderTextEditor(note);
@@ -844,6 +1046,23 @@ function closeCreateDialog() {
   elements.noteTypeDialog.hidden = true;
 }
 
+function closeMobileMenu() {
+  elements.appShell.classList.remove("menu-open");
+}
+
+function insertFoldBlock() {
+  if (getActiveNote()?.type !== "note") return;
+  const text = ":: Новый раздел\nТекст раздела\n::\n";
+  const start = elements.textEditor.selectionStart;
+  const end = elements.textEditor.selectionEnd;
+  elements.textEditor.value = `${elements.textEditor.value.slice(0, start)}${text}${elements.textEditor.value.slice(end)}`;
+  elements.textEditor.focus();
+  elements.textEditor.selectionStart = start + 3;
+  elements.textEditor.selectionEnd = start + "Новый раздел".length + 3;
+  renderFoldPreview(elements.textEditor.value);
+  scheduleActiveNoteSave();
+}
+
 function bindEvents() {
   elements.authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -868,6 +1087,8 @@ function bindEvents() {
   });
 
   elements.newNoteButton.addEventListener("click", openCreateDialog);
+  elements.newFolderButton.addEventListener("click", createFolder);
+  elements.menuButton.addEventListener("click", () => elements.appShell.classList.toggle("menu-open"));
   elements.closeDialogButton.addEventListener("click", closeCreateDialog);
   elements.noteTypeDialog.addEventListener("click", (event) => {
     if (event.target === elements.noteTypeDialog) closeCreateDialog();
@@ -878,8 +1099,13 @@ function bindEvents() {
 
   elements.deleteNoteButton.addEventListener("click", deleteActiveNote);
   elements.syncNowButton.addEventListener("click", syncOutbox);
+  elements.folderSelect.addEventListener("change", () => scheduleActiveNoteSave());
   elements.noteTitleInput.addEventListener("input", () => scheduleActiveNoteSave());
-  elements.textEditor.addEventListener("input", () => scheduleActiveNoteSave());
+  elements.insertFoldButton.addEventListener("click", insertFoldBlock);
+  elements.textEditor.addEventListener("input", () => {
+    renderFoldPreview(elements.textEditor.value);
+    scheduleActiveNoteSave();
+  });
 
   window.addEventListener("online", () => {
     render();
