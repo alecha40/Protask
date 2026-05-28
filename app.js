@@ -1113,6 +1113,7 @@ function renderEditor() {
 }
 
 function render() {
+  document.body.classList.remove("booting");
   const isAuthenticated = Boolean(state.user);
   elements.authView.hidden = isAuthenticated;
   elements.appShell.hidden = !isAuthenticated;
@@ -1132,6 +1133,7 @@ function render() {
 }
 
 function openCreateDialog() {
+  closeMobileMenu();
   elements.noteTypeDialog.hidden = false;
 }
 

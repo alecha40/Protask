@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="booting">
     <section id="authView" class="auth-view">
       <form id="authForm" class="auth-form">
         <div class="brand auth-brand">
@@ -73,8 +73,8 @@
             <input id="noteTitleInput" class="note-title-input" type="text" aria-label="Название заметки" />
             <div class="note-meta">
               <strong id="noteTypeLabel">Заметка</strong>
-              <label class="folder-select-label">
-                Папка
+              <label class="folder-select-label" title="Папка">
+                <span>▣</span>
                 <select id="folderSelect" aria-label="Папка заметки"></select>
               </label>
               <span id="savedStatus">Сохранено локально</span>
@@ -83,8 +83,8 @@
           </div>
 
           <div class="toolbar">
-            <button id="insertFoldButton" class="ghost-button" type="button">Свертка</button>
-            <button id="deleteNoteButton" class="danger-button" type="button">Удалить</button>
+            <button id="insertFoldButton" class="ghost-button icon-tool" type="button" title="Добавить свертку" aria-label="Добавить свертку">⌄</button>
+            <button id="deleteNoteButton" class="danger-button icon-tool" type="button" title="Удалить заметку" aria-label="Удалить заметку">×</button>
           </div>
         </header>
 

@@ -26,6 +26,11 @@
   display: none !important;
 }
 
+.booting .auth-view,
+.booting .app-shell {
+  visibility: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -234,6 +239,16 @@ button:focus-visible {
   border-color: var(--line);
 }
 
+.icon-tool {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .danger-button {
   background: rgba(213, 107, 107, 0.12);
   border-color: rgba(213, 107, 107, 0.42);
@@ -393,6 +408,7 @@ button:focus-visible {
 .note-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   min-height: 20px;
   margin-top: 2px;
@@ -406,6 +422,10 @@ button:focus-visible {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.folder-select-label span {
+  color: var(--accent);
 }
 
 .folder-select-label select {
@@ -811,7 +831,7 @@ button:focus-visible {
   }
 
   .topbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     padding-left: 52px;
   }
 
@@ -844,15 +864,28 @@ button:focus-visible {
   }
 
   .note-meta {
-    gap: 7px;
+    gap: 6px;
   }
 
   .folder-select-label {
-    grid-template-columns: 1fr;
-    width: 100%;
+    grid-template-columns: auto minmax(86px, 120px);
+    width: auto;
+  }
+
+  .folder-select-label select {
+    min-height: 34px;
+    padding: 0 8px;
   }
 
   .toolbar {
-    justify-content: flex-start;
+    align-self: start;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .icon-tool {
+    width: 36px;
+    min-width: 36px;
+    min-height: 36px;
   }
 }
