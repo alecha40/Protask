@@ -38,6 +38,7 @@ const state = {
   syncTimer: null,
   folders: [],
   draggedNoteId: null,
+  activeNoteBlockIndex: null,
 };
 
 const elements = {
@@ -361,6 +362,7 @@ function scheduleSync() {
 
 function isEditorFocused() {
   return [elements.noteTitleInput, elements.textEditor].includes(document.activeElement) ||
+    elements.foldPreview.contains(document.activeElement) ||
     elements.listEditor.contains(document.activeElement) ||
     elements.plannerEditor.contains(document.activeElement);
 }
@@ -419,7 +421,7 @@ async function createNote(type = "note") {
   closeCreateDialog();
   render();
 
-  if (type === "note") elements.textEditor.focus();
+  if (type === "note") elements.foldPreview.querySelector(".note-text-block")?.focus();
   if (type === "list") elements.listEditor.querySelector(".list-text")?.focus();
   if (type === "planner") elements.plannerEditor.querySelector(".planner-add-input")?.focus();
 }
@@ -496,7 +498,7 @@ async function saveActiveNoteFromEditor(getBody) {
 }
 
 function getBodyFromEditor(note) {
-  if (note.type === "note") return elements.textEditor.value;
+  if (note.type === "note") return serializeNoteBlocks(readNoteBlocksFromEditor());
   if (note.type === "list") return JSON.stringify(readListFromEditor());
   if (note.type === "planner") return JSON.stringify(readPlannerFromEditor());
   return note.body;
@@ -672,47 +674,138 @@ async function reorderNote(sourceId, targetId) {
 }
 
 function renderTextEditor(note) {
-  elements.textEditor.hidden = false;
+  elements.textEditor.hidden = true;
   elements.foldPreview.hidden = false;
   elements.listEditor.hidden = true;
   elements.plannerEditor.hidden = true;
 
-  if (document.activeElement !== elements.textEditor) {
-    elements.textEditor.value = note.body;
+  if (!elements.foldPreview.contains(document.activeElement)) {
+    renderNoteBlockEditor(parseNoteBlocks(note.body));
   }
-  renderFoldPreview(note.body);
 }
 
-function renderFoldPreview(body) {
+function parseNoteBlocks(body) {
   const blocks = [];
   const lines = body.split("\n");
-  let current = null;
+  let textBuffer = [];
+  let currentFold = null;
+
+  const flushText = () => {
+    if (textBuffer.length > 0 || blocks.length === 0) {
+      blocks.push({ type: "text", text: textBuffer.join("\n") });
+      textBuffer = [];
+    }
+  };
 
   lines.forEach((line) => {
     if (line.startsWith(":: ")) {
-      current = { title: line.slice(3).trim() || "Раздел", content: [] };
-      blocks.push(current);
+      flushText();
+      currentFold = { type: "fold", title: line.slice(3).trim() || "Раздел", text: "", open: false };
+      blocks.push(currentFold);
     } else if (line.trim() === "::") {
-      current = null;
-    } else if (current) {
-      current.content.push(line);
+      currentFold = null;
+      textBuffer = [];
+    } else if (currentFold) {
+      currentFold.text = currentFold.text ? `${currentFold.text}\n${line}` : line;
+    } else {
+      textBuffer.push(line);
     }
   });
 
-  if (blocks.length === 0) {
-    elements.foldPreview.replaceChildren();
-    return;
+  if (textBuffer.length > 0) {
+    flushText();
   }
 
-  const nodes = blocks.map((block) => {
-    const details = document.createElement("details");
-    details.className = "fold-block";
-    details.innerHTML = `<summary></summary><pre></pre>`;
-    details.querySelector("summary").textContent = block.title;
-    details.querySelector("pre").textContent = block.content.join("\n");
-    return details;
+  return blocks.length > 0 ? blocks : [{ type: "text", text: "" }];
+}
+
+function serializeNoteBlocks(blocks) {
+  return blocks
+    .map((block) => {
+      if (block.type === "fold") {
+        return `:: ${block.title || "Раздел"}\n${block.text || ""}\n::`;
+      }
+      return block.text || "";
+    })
+    .join("\n");
+}
+
+function renderNoteBlockEditor(blocks) {
+  const nodes = blocks.map((block, index) => {
+    if (block.type === "fold") return renderFoldBlock(block, index);
+    return renderTextBlock(block, index);
   });
   elements.foldPreview.replaceChildren(...nodes);
+}
+
+function renderTextBlock(block, index) {
+  const textarea = document.createElement("textarea");
+  textarea.className = "note-text-block";
+  textarea.dataset.blockIndex = index;
+  textarea.placeholder = "Пишите здесь...";
+  textarea.value = block.text || "";
+  textarea.addEventListener("focus", () => {
+    state.activeNoteBlockIndex = index;
+  });
+  textarea.addEventListener("input", () => {
+    autoGrow(textarea);
+    scheduleActiveNoteSave();
+  });
+  requestAnimationFrame(() => autoGrow(textarea));
+  return textarea;
+}
+
+function renderFoldBlock(block, index) {
+  const details = document.createElement("details");
+  details.className = "fold-block";
+  details.dataset.blockIndex = index;
+  details.open = block.open;
+  details.innerHTML = `
+    <summary>
+      <span class="fold-arrow">▸</span>
+      <strong></strong>
+    </summary>
+    <textarea class="fold-textarea" placeholder="Текст внутри свертки"></textarea>
+  `;
+
+  details.querySelector("strong").textContent = block.title || "Раздел";
+  const textarea = details.querySelector(".fold-textarea");
+  textarea.value = block.text || "";
+  textarea.addEventListener("focus", () => {
+    state.activeNoteBlockIndex = index;
+  });
+  textarea.addEventListener("input", () => {
+    autoGrow(textarea);
+    scheduleActiveNoteSave();
+  });
+  details.addEventListener("toggle", () => {
+    details.querySelector(".fold-arrow").textContent = details.open ? "▾" : "▸";
+  });
+  requestAnimationFrame(() => autoGrow(textarea));
+  return details;
+}
+
+function readNoteBlocksFromEditor() {
+  return [...elements.foldPreview.children].map((node) => {
+    if (node.classList.contains("fold-block")) {
+      return {
+        type: "fold",
+        title: node.querySelector("summary strong").textContent,
+        text: node.querySelector(".fold-textarea").value,
+        open: node.open,
+      };
+    }
+
+    return {
+      type: "text",
+      text: node.value,
+    };
+  });
+}
+
+function autoGrow(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight}px`;
 }
 
 function renderListEditor(note) {
@@ -1052,15 +1145,17 @@ function closeMobileMenu() {
 
 function insertFoldBlock() {
   if (getActiveNote()?.type !== "note") return;
-  const text = ":: Новый раздел\nТекст раздела\n::\n";
-  const start = elements.textEditor.selectionStart;
-  const end = elements.textEditor.selectionEnd;
-  elements.textEditor.value = `${elements.textEditor.value.slice(0, start)}${text}${elements.textEditor.value.slice(end)}`;
-  elements.textEditor.focus();
-  elements.textEditor.selectionStart = start + 3;
-  elements.textEditor.selectionEnd = start + "Новый раздел".length + 3;
-  renderFoldPreview(elements.textEditor.value);
-  scheduleActiveNoteSave();
+  const title = prompt("Название свертки", new Date().toLocaleDateString("ru"));
+  const foldTitle = title?.trim();
+  if (!foldTitle) return;
+
+  const blocks = readNoteBlocksFromEditor();
+  const insertIndex = state.activeNoteBlockIndex === null ? blocks.length : state.activeNoteBlockIndex + 1;
+  blocks.splice(insertIndex, 0, { type: "fold", title: foldTitle, text: "", open: true });
+  blocks.splice(insertIndex + 1, 0, { type: "text", text: "" });
+  renderNoteBlockEditor(blocks);
+  elements.foldPreview.querySelector(`[data-block-index="${insertIndex}"] .fold-textarea`)?.focus();
+  scheduleActiveNoteSave(() => serializeNoteBlocks(readNoteBlocksFromEditor()));
 }
 
 function bindEvents() {
@@ -1102,10 +1197,6 @@ function bindEvents() {
   elements.folderSelect.addEventListener("change", () => scheduleActiveNoteSave());
   elements.noteTitleInput.addEventListener("input", () => scheduleActiveNoteSave());
   elements.insertFoldButton.addEventListener("click", insertFoldBlock);
-  elements.textEditor.addEventListener("input", () => {
-    renderFoldPreview(elements.textEditor.value);
-    scheduleActiveNoteSave();
-  });
 
   window.addEventListener("online", () => {
     render();

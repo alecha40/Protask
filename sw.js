@@ -1,4 +1,4 @@
-const CACHE_NAME = "protask-v9";
+const CACHE_NAME = "protask-v10";
 const ASSETS = [
   ".",
   "index.html",
