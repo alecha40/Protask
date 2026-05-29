@@ -34,6 +34,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
   background: var(--bg);
   color: var(--ink);
@@ -67,6 +69,7 @@ button {
   display: grid;
   gap: 22px;
   width: min(560px, 100%);
+  min-width: 0;
   padding: 30px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -99,6 +102,10 @@ button {
   align-items: center;
   min-width: 0;
   gap: 12px;
+}
+
+.brand > div:last-child {
+  min-width: 0;
 }
 
 .auth-brand {
@@ -803,6 +810,45 @@ button:focus-visible {
 @media (max-width: 940px) {
   body {
     width: 100%;
+  }
+
+  .auth-view {
+    width: 100%;
+    min-height: 100dvh;
+    place-items: stretch;
+    padding: 12px;
+  }
+
+  .auth-form {
+    align-self: center;
+    width: 100%;
+    max-width: 100%;
+    padding: 18px;
+  }
+
+  .auth-brand {
+    align-items: flex-start;
+  }
+
+  .auth-brand .brand-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  .auth-brand .brand-mark svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .auth-brand span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+  }
+
+  .auth-brand strong {
+    white-space: normal;
   }
 
   .app-shell {

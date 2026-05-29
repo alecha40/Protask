@@ -1,4 +1,4 @@
-const CACHE_NAME = "mindplan-v13";
+const CACHE_NAME = "mindplan-v14";
 const ASSETS = [
   ".",
   "index.html",
