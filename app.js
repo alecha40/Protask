@@ -5,6 +5,7 @@ const STORE_NOTES = "notes";
 const STORE_OUTBOX = "outbox";
 const SESSION_KEY = "protask-session";
 const FOLDERS_KEY = "protask-folders";
+const COLLAPSED_FOLDERS_KEY = "protask-collapsed-folders";
 const SUPABASE_URL = "https://xbvxlknwlqrtiuafkwzk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_WRlnbtQ5ieh02JxHxkgLDw_mFHEhlvu";
 
@@ -37,6 +38,7 @@ const state = {
   draggedTask: null,
   syncTimer: null,
   folders: [],
+  collapsedFolders: new Set(),
   draggedNoteId: null,
   activeNoteBlockIndex: null,
 };
@@ -132,14 +134,27 @@ function getFolderStorageKey() {
   return `${FOLDERS_KEY}:${state.user?.id ?? "guest"}`;
 }
 
+function getCollapsedFolderStorageKey() {
+  return `${COLLAPSED_FOLDERS_KEY}:${state.user?.id ?? "guest"}`;
+}
+
 function loadFolders() {
   const saved = JSON.parse(localStorage.getItem(getFolderStorageKey()) || "[]");
   const fromNotes = state.notes.map((note) => note.folderName).filter(Boolean);
   state.folders = [...new Set(["Без папки", ...saved, ...fromNotes])];
+  state.collapsedFolders = new Set(
+    JSON.parse(localStorage.getItem(getCollapsedFolderStorageKey()) || "[]").filter((folder) =>
+      state.folders.includes(folder),
+    ),
+  );
 }
 
 function saveFolders() {
   localStorage.setItem(getFolderStorageKey(), JSON.stringify(state.folders.filter((folder) => folder !== "Без папки")));
+}
+
+function saveCollapsedFolders() {
+  localStorage.setItem(getCollapsedFolderStorageKey(), JSON.stringify([...state.collapsedFolders]));
 }
 
 function loginToEmail(login) {
@@ -547,14 +562,23 @@ function renderNoteList() {
     `;
 
     const notes = state.notes.filter((note) => (note.folderName || "Без папки") === folderName);
-    folder.querySelector("span").textContent = "▾";
+    const isCollapsed = state.collapsedFolders.has(folderName);
+    folder.classList.toggle("collapsed", isCollapsed);
+    folder.querySelector("span").textContent = isCollapsed ? "▸" : "▾";
     folder.querySelector("strong").textContent = `${folderName} (${notes.length})`;
     const list = folder.querySelector(".folder-notes");
     list.replaceChildren(...notes.map(renderNoteItem));
 
     folder.querySelector(".folder-toggle").addEventListener("click", () => {
-      folder.classList.toggle("collapsed");
-      folder.querySelector("span").textContent = folder.classList.contains("collapsed") ? "▸" : "▾";
+      const shouldCollapse = !state.collapsedFolders.has(folderName);
+      if (shouldCollapse) {
+        state.collapsedFolders.add(folderName);
+      } else {
+        state.collapsedFolders.delete(folderName);
+      }
+      saveCollapsedFolders();
+      folder.classList.toggle("collapsed", shouldCollapse);
+      folder.querySelector("span").textContent = shouldCollapse ? "▸" : "▾";
     });
 
     list.addEventListener("dragover", (event) => {
